@@ -18,25 +18,11 @@
 #    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 
-IDL_DIR=/usr/local/itt/idl/
-
-
-CC = gcc
-LD = gcc
 CP = cp -f
 
-OS_CFLAGS=-Wall -fPIC
-OS_LDFLAGS=-shared
-OS_ARFLAGS=-rvcs
-PG_CFLAGS=
-PG_LDFLAGS=
-
-INCLUDE = -I${IDL_DIR}/external/include
-LDLIBS = -lz 
-
-SOFILES = pgsql_query.so 
-OBJFILES = pgsql_query.o pgsql_query_util.o 
-DLMS = pgsql_query.dlm 
+SOFILES = pgsql_query.so
+OBJFILES = pgsql_query.o pgsql_query_util.o
+DLMS = pgsql_query.dlm
 
 
 PGVER := $(wildcard postgr*tar*)
@@ -57,9 +43,7 @@ endif
 
 PGDIR=$(PGPATH)
 PG_CFLAGS=-I${PGDIR}/src/interfaces/libpq/ -I${PGDIR}/src/include/
-CFLAGS = ${INCLUDE} ${OS_CFLAGS} ${PG_CFLAGS}
 LIBPQA=${PGDIR}/src/interfaces/libpq/libpq.a
-LDFLAGS = ${OS_LDFLAGS} ${LIBPQA} 
 
 ${LIBPQA}:
 ifndef PGVER
@@ -69,19 +53,13 @@ endif
 	cd $(PGPATH);./configure;make
 
 
-all: ${SOFILES}
-	mkdir -p DLM
-	${CP} ${SOFILES} DLM
+all: link
 	${CP} ${DLMS} DLM
 
 
 clean:
-	- ${RM} ${SOFILES} ${OBJFILES}
-	- ${RM} DLM/${SOFILES} DLM/${DLMS}
+	- ${RM} -r DLM
 
-pgsql_query.so: pgsql_query.o pgsql_query_util.o ${LIBPQA}
-	@ echo linking $@
-	${LD} -o $@ pgsql_query.o pgsql_query_util.o ${LDFLAGS} ${LDLIBS}
-
-pgsql_query.o: pgsql_query.c pgsql_query.h ${LIBPQA}
-pgsql_query_util.o: pgsql_query_util.c pgsql_query.h ${LIBPQA}
+link: ${LIBPQA}
+	mkdir -p DLM
+	echo "make_dll,['pgsql_query','pgsql_query_util'],'pgsql_query','IDL_Load',input_directory='./',extra_cflags='"$(PG_CFLAGS)"',extra_lflags='"$(LIBPQA)"',compile_directory='./',/show_all_output,output_directory='DLM'" | idl

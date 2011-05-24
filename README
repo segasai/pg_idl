@@ -4,10 +4,12 @@ I have extracted it from sdssidl ( http://code.google.com/p/sdssidl/ ) and made 
 
 
 INSTALLATION: 
-The only pre-requisite is that you have to download the postgresql tarball
-from http://www.postgresql.org/ftp/source/ and put it in this directory. 
+The pre-requisite is that you have to download the postgresql tarball
+from http://www.postgresql.org/ftp/source/ and put it in this directory (no
+need to extract it).
+You also should have idl in your path
 
-After that run
+After that just run
    make
 
 This will create the directory called DLM which will have a dynamically
@@ -15,7 +17,6 @@ loadable IDL module.
 You can put this directory anywhere and add the path to it to the 
 environmental variable IDL_DLM_PATH, e.g.
 export IDL_DLM_PATH=some_path/DLM
-
 
 After that in any IDL session you should be able to use pgsql_query()
 function
