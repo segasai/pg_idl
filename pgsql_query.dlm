@@ -23,7 +23,7 @@
 MODULE PGSQL_QUERY
 DESCRIPTION Send a query to the pgsql server and retrieve the results
 VERSION 2.0
-BUILD_DATE 03-Dec-2005
-SOURCE Erin Sheldon, UofChicago
+BUILD_DATE 24-May-2011
+SOURCE Erin Sheldon, UofChicago/Sergey Koposov University of Cambridge
 
 FUNCTION PGSQL_QUERY 0 IDL_MAXPARAMS KEYWORDS

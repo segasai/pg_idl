@@ -32,3 +32,17 @@ IDL> help,res,/str
    RA              DOUBLE           329.12152
    DEC             DOUBLE           44.397910
 
+
+IF you don't want to type all the time the connection info, you should 
+define the environmental variables:
+PGHOST PGDATABASE PGUSER PGPASSWORD
+export PGHOST=hostname_of_the_database_server
+export PGDATABASE=dbname
+export PGUSER=your_username
+export PGPASSWORD=your_password
+
+If you define these, you can easily query without additional arguments:
+Running the .idl_startup script...
+
+IDL> res=pgsql_query('select ra,dec from sdssdr7.phototag limit 10')
+
