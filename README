@@ -1,0 +1,22 @@
+This is the module for accesing Postgresql database from IDL. 
+It was mostly written by Erin Sheldon. 
+I have extracted it from sdssidl and made the installation simpler.
+
+
+INSTALLATION: 
+The only pre-requisite is that you have to download the postgresql tarball
+from http://www.postgresql.org/ftp/source/ and put it in this directory. 
+
+After that run
+   make
+
+This will create the directory called DLM which will have a dynamically
+loadable IDL module. 
+You can put this directory anywhere and add the path to it to the 
+environmental variable IDL_DLM_DIR, e.g.
+export IDL_DLM_DIR=some_path/DLM
+
+
+After that in any IDL session you should be able to use pgsql_query()
+function
+
