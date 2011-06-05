@@ -2,6 +2,7 @@
 # database.  
 #
 #  Copyright (C) 2005  Erin Sheldon, NYU.  erin dot sheldon at gmail dot com
+#            (C) 2011  Sergey Koposov, IoA, Cambridge. koposov at ast dot cam dot ac dot uk
 #
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
