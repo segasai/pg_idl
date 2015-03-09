@@ -887,7 +887,9 @@ IDL_MEMINT pgsql2idltype(int pgsql_type)
                    /* time */
         case 1083: return(IDL_TYP_STRING);
                    /* timestamp */
-        case 1114: return(IDL_TYP_STRING);
+        case 1114: return(IDL_TYP_LONG64);
+                    /* timestamptz */
+        case 1184: return(IDL_TYP_LONG64);
 
                    /*
                       Array types 
