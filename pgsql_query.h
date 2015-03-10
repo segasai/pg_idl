@@ -50,7 +50,7 @@
 #define SIZE32 4
 #define SIZE64 8
 
-#define VERBOSE 0
+#define VERBOSE 1
 
 typedef struct {
 

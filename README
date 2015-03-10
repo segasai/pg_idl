@@ -1,7 +1,6 @@
 This is the module for accesing Postgresql database from IDL. 
 It was mostly written by Erin Sheldon. 
-I have extracted it from sdssidl ( http://code.google.com/p/sdssidl/ ) and made the installation simpler.
-
+Sergey Koposov extracted it from sdssidl ( http://code.google.com/p/sdssidl/ ) and made the installation simpler.
 
 INSTALLATION: 
 The pre-requisite is that you have to download the postgresql tarball
