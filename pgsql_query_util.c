@@ -37,6 +37,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <ctype.h> // For toupper
+#include <math.h>  // For NAN
 
 #include "pgsql_query.h"
 
@@ -162,7 +163,7 @@ pgsql_query_send(char *query, char *connect_info, IDL_VPTR *resultVptr)
                 ( (*resultVptr)->value.s.arr->data +
                   row*( (*resultVptr)->value.arr->elt_len) + ti->tagOffsets[tag]);
             pgsql_store_binary(ti->tagDesc[tag]->type, fi->field_isarray[tag],
-                    PQgetvalue(res, row, tag), tptr);	      
+                    PQgetisnull(res, row, tag), PQgetvalue(res, row, tag), tptr);
         }
 
     if (verbose)
@@ -373,7 +374,7 @@ int pgsql_query_send_async(char *query, char *connect_info, IDL_VPTR *resultVptr
                 ( (*resultVptr)->value.s.arr->data +
                   row*( (*resultVptr)->value.arr->elt_len) + ti->tagOffsets[tag]);
             pgsql_store_binary(ti->tagDesc[tag]->type, fi->field_isarray[tag],
-                    PQgetvalue(res, row, tag), tptr);	      
+                    PQgetisnull(res, row, tag), PQgetvalue(res, row, tag), tptr);
         }
 
 
@@ -749,7 +750,8 @@ char *string2upper(char *st)
  */
 
 void pgsql_store_binary(int32 idlType, 
-        int16 isarray, 
+        int16 isarray,
+        int isnull,
         char *input, 
         UCHAR *output)
 {
@@ -761,60 +763,91 @@ void pgsql_store_binary(int32 idlType,
             if (isarray)
                 fillNumArray(input, output, 4);
             else
-                NTOH32(input, output);
+            {
+                if (isnull)
+                    *((float32 *) output) = -NAN;
+                else
+                    NTOH32(input, output);
+            }
             break;
 
         case IDL_TYP_DOUBLE:
             if (isarray)
                 fillNumArray(input, output, 8);
             else
-                NTOH64(input, output);
+            {
+                if (isnull)
+                    *((float64 *) output) = -NAN;
+                else
+                    NTOH64(input, output);
+            }
             break;
 
         case IDL_TYP_BYTE:
             if (isarray)
                 fillNumArray(input, output, 1);
             else
-                *(UCHAR *) output = *(UCHAR *) input;
+                if (isnull)
+                    *(UCHAR *) output = 255;
+                else
+                    *(UCHAR *) output = *(UCHAR *) input;
             break;
 
         case IDL_TYP_INT:
             if (isarray)
                 fillNumArray(input, output, 2);
             else
-                NTOH16(input, output);
+                if (isnull)
+                    *((IDL_INT *) output) = (IDL_INT) -32768;
+                else
+                    NTOH16(input, output);
             break;
         case IDL_TYP_UINT:
             if (isarray)
                 fillNumArray(input, output, 2);
             else
-                NTOH16(input, output);
+                if (isnull)
+                    *((IDL_UINT *) output) = (IDL_UINT) 65535;
+                else
+                    NTOH16(input, output);
             break;
 
         case IDL_TYP_LONG:
             if (isarray)
                 fillNumArray(input, output, 4);
             else
-                NTOH32(input, output);
+                if (isnull)
+                    *((IDL_LONG *) output) = (IDL_LONG) -2147483648;
+                else
+                    NTOH32(input, output);
             break;
         case IDL_TYP_ULONG:
             if (isarray)
                 fillNumArray(input, output, 4);
             else
-                NTOH32(input, output);
+                if (isnull)
+                    *((IDL_ULONG *) output) = (IDL_ULONG) 4294967295;
+                else
+                    NTOH32(input, output);
             break;
 
         case IDL_TYP_LONG64:
             if (isarray)
                 fillNumArray(input, output, 8);
             else
-                NTOH64(input, output);
+                if (isnull)
+                    *((IDL_LONG64 *) output) = (IDL_LONG64) -9223372036854775808;
+                else
+                    NTOH64(input, output);
             break;
         case IDL_TYP_ULONG64:
             if (isarray)
                 fillNumArray(input, output, 8);
             else
-                NTOH64(input, output);
+                if (isnull)
+                    *((IDL_ULONG64 *) output) = (IDL_ULONG64) 18446744073709551615;
+                else
+                    NTOH64(input, output);
             break;
 
 
@@ -822,6 +855,7 @@ void pgsql_store_binary(int32 idlType,
             if (isarray)
                 fillStringArray(input, (IDL_STRING *) output);
             else
+                /* NULL strings are already empty */
                 IDL_StrStore( (IDL_STRING *) output, input);
             break;
 
