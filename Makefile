@@ -70,7 +70,14 @@ manual: $(LIBPQA) $(OBJFILES)
 	mkdir -p DLM
 	$(LD) $(LDFLAGS) $(LIBPQA) $(OBJFILES) -o DLM/$(SOFILES)
 
+extra_verbose: PG_CFLAGS += -DEXTRA_VERBOSE
+extra_verbose: manual
+	echo "compiling with extra verbosity."
+
 clean:
+	- ${RM} -r $(OBJFILES)
+
+fclean: clean
 	- ${RM} -r DLM
 
 link: ${LIBPQA}
