@@ -25,7 +25,7 @@ export IDL_DLM_PATH=some_path/DLM
 
 Debug
 -----
-The `make_dll` IDL facility didn't work out of the box for me (mac platform) so I added a `manual` target to the makefile.` 
+The `make_dll` IDL facility didn't work out of the box for me (mac platform) so I added a `manual` target to the makefile.  
 In case `make` doesn't work, try `make manual` instead.
 
 To enable further debug messages (other than those in `/verbose`), do:
