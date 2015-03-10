@@ -2,8 +2,8 @@ pgsql_query IDL module
 ======================
 
 This is a module for accessing PostgreSQL database from IDL.  
-It was mostly written by Erin Sheldon.  
-[Sergey Koposov](https://github.com/segasai/pg_idl) extracted it from [sdssidl](http://code.google.com/p/sdssidl/) and made the installation simpler.  
+It was mostly written by [Erin Sheldon](http://code.google.com/p/sdssidl/).  
+[Sergey Koposov](https://github.com/segasai/pg_idl) extracted it from [SDSSIDL](https://code.google.com/p/sdssidl/source/browse/#svn%2Ftrunk%2Fsrc%2Fpgsql) and made the installation simpler.  
 I am making further improvements such as adding support for `NULL`s.
 
 Postgres returns an empty C string for `NULL` values and this caused random values to appear in IDL query results.
@@ -20,7 +20,7 @@ After that just run:
 This will create the directory called DLM which will have a dynamically loadable IDL module.  
 You can put this directory anywhere and add the path to it to the environmental variable `IDL_DLM_PATH`, e.g.
 ```bash
-    export IDL_DLM_PATH=some_path/DLM
+export IDL_DLM_PATH=some_path/DLM
 ```
 
 Debug
@@ -32,6 +32,8 @@ To enable further debug messages (other than those in `/verbose`), do:
 
     make extra_verbose
 
+Usage
+-----
 After that in any IDL session you should be able to use `pgsql_query()`
 
 ```idl
