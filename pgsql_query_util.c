@@ -27,6 +27,7 @@
 #include <string.h>
 #include "idl_export.h"
 #include "libpq-fe.h"
+#include "catalog/pg_type.h"
 #include "types.h"
 #include <arpa/inet.h>
 
@@ -847,112 +848,112 @@ IDL_MEMINT pgsql2idltype(int pgsql_type)
            */
 
         /* boolean */
-        case 16: return(IDL_TYP_BYTE);
+        case BOOLOID: return(IDL_TYP_BYTE); /* 16 */
                  /* "binary" data */
-        case 17: return(IDL_TYP_BYTE);
+        case BYTEAOID: return(IDL_TYP_BYTE); /* 17 */
                  /* char data */
-        case 18: return(IDL_TYP_STRING);
+        case CHAROID: return(IDL_TYP_STRING); /* 18 */
                  /* "name" */
-        case 19: return(IDL_TYP_STRING);
+        case NAMEOID: return(IDL_TYP_STRING); /* 19 */
                  /* bigint */
-        case 20: return(IDL_TYP_LONG64);
+        case INT8OID: return(IDL_TYP_LONG64); /* 20 */
                  /* smallint */
-        case 21: return(IDL_TYP_INT);
+        case INT2OID: return(IDL_TYP_INT); /* 21 */
                  /* int2vector ??*/
-                 /* 22: int2vector?? */
+                 /* INT2VECTOROID 22: int2vector?? */
                  /* integer, int4 */
-        case 23: return(IDL_TYP_LONG);
+        case INT4OID: return(IDL_TYP_LONG); /* 23 */
                  /* text */
-        case 25: return(IDL_TYP_STRING);
+        case TEXTOID: return(IDL_TYP_STRING); /* 25 */
                  /* oid */
-        case 26: return(IDL_TYP_ULONG);
+        case OIDOID: return(IDL_TYP_ULONG); /* 26 */
                  /* tid */
-        case 27: return(IDL_TYP_ULONG);
+        case TIDOID: return(IDL_TYP_ULONG); /* 27 */
                  /* xid */
-        case 28: return(IDL_TYP_ULONG);
+        case XIDOID: return(IDL_TYP_ULONG); /* 28 */
                  /* cid */
-        case 29: return(IDL_TYP_ULONG);
+        case CIDOID: return(IDL_TYP_ULONG); /* 29 */
 
                  /* float */
-        case 700: return(IDL_TYP_FLOAT);
+        case FLOAT4OID: return(IDL_TYP_FLOAT); /* 700 */
                   /* double */
-        case 701: return(IDL_TYP_DOUBLE);
+        case FLOAT8OID: return(IDL_TYP_DOUBLE); /* 701 */
 
                   /* bpchar */
-        case 1042: return(IDL_TYP_STRING);
+        case BPCHAROID: return(IDL_TYP_STRING); /* 1042 */
                    /* varchar */
-        case 1043: return(IDL_TYP_STRING);
+        case VARCHAROID: return(IDL_TYP_STRING); /* 1043 */
                    /* date */
-        case 1082: return(IDL_TYP_STRING);
+        case DATEOID: return(IDL_TYP_STRING); /* 1082 */
                    /* time */
-        case 1083: return(IDL_TYP_STRING);
+        case TIMEOID: return(IDL_TYP_STRING); /* 1083 */
                    /* timestamp */
-        case 1114: return(IDL_TYP_LONG64);
-                    /* timestamptz */
-        case 1184: return(IDL_TYP_LONG64);
+        case TIMESTAMPOID: return(IDL_TYP_LONG64); /* 1114 */
+                   /* timestamptz */
+        case TIMESTAMPTZOID: return(IDL_TYP_LONG64); /* 1114 */
 
                    /*
                       Array types 
                       */
 
                    /* bool */
-        case 1000: return(IDL_TYP_BYTE);
+        case 1000:return(IDL_TYP_BYTE);
                    /* binary */
-        case 1001: return(IDL_TYP_BYTE);
+        case 1001:return(IDL_TYP_BYTE);
                    /* char */
-        case 1002: return(IDL_TYP_BYTE);
+        case 1002:return(IDL_TYP_BYTE);
                    /* name */
-        case 1003: return(IDL_TYP_BYTE);
+        case 1003:return(IDL_TYP_BYTE);
 
                    /* smallint */
-        case 1005: return(IDL_TYP_INT);
+        case INT2ARRAYOID: return(IDL_TYP_INT); /* 1005 */
                    /* int2vector */
-                   /* case 1006: ?? */
+                   /* case 1006:?? */
                    /* integer, int4 */
-        case 1007: return(IDL_TYP_LONG);
+        case INT4ARRAYOID: return(IDL_TYP_LONG); /* 1007 */
                    /* bigint, int8 */
-        case 1016: return(IDL_TYP_LONG64);
+        case 1016:return(IDL_TYP_LONG64);
 
                    /* text */
-        case 1009: return(IDL_TYP_STRING);
+        case TEXTARRAYOID: return(IDL_TYP_STRING); /* 1009 */
 
                    /* oid */
-        case 1028: return(IDL_TYP_ULONG);
+        case OIDARRAYOID: return(IDL_TYP_ULONG); /* 1028 */
                    /* tid */
-        case 1010: return(IDL_TYP_ULONG);
+        case 1010:return(IDL_TYP_ULONG);
                    /* xid */
-        case 1011: return(IDL_TYP_ULONG);
+        case 1011:return(IDL_TYP_ULONG);
                    /* cid */
-        case 1012: return(IDL_TYP_ULONG);
+        case 1012:return(IDL_TYP_ULONG);
 
                    /* character(n), fixed length */
-        case 1014: return(IDL_TYP_STRING);
+        case 1014:return(IDL_TYP_STRING);
                    /* varchar */
-        case 1015: return(IDL_TYP_STRING);
+        case 1015:return(IDL_TYP_STRING);
 
                    /* float */
-        case 1021: return(IDL_TYP_FLOAT);
+        case FLOAT4ARRAYOID: return(IDL_TYP_FLOAT); /* 1021 */
                    /* double */
-        case 1022: return(IDL_TYP_DOUBLE);
+        case 1022:return(IDL_TYP_DOUBLE);
 
                    /* abstime */
-        case 1023: return(IDL_TYP_STRING);
+        case 1023:return(IDL_TYP_STRING);
                    /* reltime */
-        case 1024: return(IDL_TYP_STRING);
+        case 1024:return(IDL_TYP_STRING);
                    /* tinterval */
-        case 1025: return(IDL_TYP_STRING);
+        case 1025:return(IDL_TYP_STRING);
 
                    /* timestamp */
-        case 1115: return(IDL_TYP_STRING);
+        case 1115:return(IDL_TYP_STRING);
                    /* time */
-        case 1183: return(IDL_TYP_STRING);
+        case 1183:return(IDL_TYP_STRING);
                    /* timestampz */
-        case 1185: return(IDL_TYP_STRING);
+        case 1185:return(IDL_TYP_STRING);
                    /* timetz */
-        case 1270: return(IDL_TYP_STRING);
+        case 1270:return(IDL_TYP_STRING);
 
                    /* numeric */
-        case 1231: return(IDL_TYP_DOUBLE);
+        case 1231:return(IDL_TYP_DOUBLE);
 
         default: return(IDL_TYP_STRING);
     }
