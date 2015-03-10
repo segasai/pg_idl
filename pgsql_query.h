@@ -50,7 +50,12 @@
 #define SIZE32 4
 #define SIZE64 8
 
-#define VERBOSE 1
+#ifdef EXTRA_VERBOSE
+  #define VERBOSE 1
+#else
+  #define VERBOSE 0
+#endif
+
 
 typedef struct {
 
@@ -113,7 +118,8 @@ pgsql_get_idl_tag_info(IDL_STRUCT_TAG_DEF *tagdefs);
 
 /* Store the binary data in an idl tag variable */
 void pgsql_store_binary(int idlType, 
-			int16 isarray, 
+			int16 isarray,
+      int isnull,
 			char *input, 
 			UCHAR *output);
 
