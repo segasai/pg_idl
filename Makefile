@@ -53,12 +53,15 @@ LDFLAGS = -bundle -flat_namespace -undefined suppress
 CC = gcc
 LD = gcc
 
+CONF_CFLAGS =
+CONF_FLAGS =
+
 ${LIBPQA}:
-	ifndef PGVER
-		$(error "Please download postgresql source tarball from http://www.postgresql.org/ftp/source/ and put it in this directory")
-	endif
+ifndef PGVER
+	$(error "Please download postgresql source tarball from http://www.postgresql.org/ftp/source/ and put it in this directory")
+endif
 	tar $(TARARG) 
-	cd $(PGPATH);./configure;make
+	cd $(PGPATH);$(CONF_CFLAGS) ./configure $(CONF_FLAGS);make
 
 all: link
 	${CP} ${DLMS} DLM
@@ -72,7 +75,15 @@ manual: $(LIBPQA) $(OBJFILES)
 
 extra_verbose: PG_CFLAGS += -DEXTRA_VERBOSE
 extra_verbose: manual
-	echo "compiling with extra verbosity."
+	@echo "compiling with extra verbosity."
+
+32bit: IDL_CFLAGS += -m32
+32bit: LDFLAGS += -m32
+32bit: CONF_FLAGS += --build=i386-apple-darwin --host=i386-apple-darwin --target=i386-apple-darwin
+32bit: CONF_CFLAGS += CFLAGS=-m32 CPPFLAGS=-m32 CXXFLAGS=-m32
+32bit: SOFILES = $(NAME).darwin.i386.so
+32bit: manual
+	@echo "compiling for 32 bit platform."
 
 clean:
 	- ${RM} -r $(OBJFILES)
