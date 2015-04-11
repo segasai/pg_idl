@@ -21,12 +21,13 @@
 
 */
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "idl_export.h"
 #include "libpq-fe.h"
+#include "c.h" // for CppConcat below
+#include "catalog/pg_type.h"
 #include "types.h"
 #include <arpa/inet.h>
 
@@ -35,12 +36,12 @@
 #include <time.h>
 #include <unistd.h>
 #include <ctype.h> // For toupper
+#include <math.h>  // For NAN
 
 #include "pgsql_query.h"
 
-
 /* ---------------------------------------------------------------------
-   Send the query and get the results 
+   Send the query and get the results
    ---------------------------------------------------------------------*/
 
 int
@@ -54,7 +55,6 @@ pgsql_query_send(char *query, char *connect_info, IDL_VPTR *resultVptr)
 
     int query_status;
 
-
     /* Infor about each field */
     field_info *fi;
 
@@ -62,7 +62,6 @@ pgsql_query_send(char *query, char *connect_info, IDL_VPTR *resultVptr)
     idl_tag_info *ti;
     //UCHAR *dataPtr;
     char *dataPtr;
-
 
     /* temporary pointer to tag data */
     UCHAR *tptr;
@@ -82,24 +81,23 @@ pgsql_query_send(char *query, char *connect_info, IDL_VPTR *resultVptr)
     if (PQstatus(conn) != CONNECTION_OK)
     {
         pgsql_query_error("Could not establish connection",
-                PQerrorMessage(conn));	
+                PQerrorMessage(conn));
         PQfinish(conn);
         return(MYPG_CONNECT_FAILURE);
     }
 
-
     /* send the query and return the results */
-    if (kw.file_there) 
+    if (kw.file_there)
         binary = 0;
     else
         binary = 1;
 
     if (kw.verbose_there)
-        if (kw.verbose) 
+        if (kw.verbose)
             verbose = 1;
 
     if (verbose)
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, 
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO,
                 "Querying database non-asynchronously: you may not cancel. For requests you may cancel don't send the /no_async keyword");
 
     res = PQexecParams(conn,
@@ -111,7 +109,6 @@ pgsql_query_send(char *query, char *connect_info, IDL_VPTR *resultVptr)
             NULL,
             binary); /* 0 for text, 1 for binary (network order) */
 
-
     /* Success? */
     query_status = pgsql_query_checkstatus(res);
     if (query_status != MYPG_SUCCESS)
@@ -121,14 +118,13 @@ pgsql_query_send(char *query, char *connect_info, IDL_VPTR *resultVptr)
     }
 
     /* See if the user input a file to write to */
-    if (kw.file_there) 
+    if (kw.file_there)
     {
         int write_status;
         write_status = pgsql_write_file(res);
         prepExit(conn, res);
         return(write_status);
     }
-
 
     /* Get information for each returned field */
     fi = pgsql_get_field_info(res);
@@ -139,32 +135,30 @@ pgsql_query_send(char *query, char *connect_info, IDL_VPTR *resultVptr)
     /* Get info to make struct and copy data */
     ti = pgsql_get_idl_tag_info(fi->tagdefs);
 
-
-    /* Create the output structure */  
+    /* Create the output structure */
     if (verbose)
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Creating output struct");  
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Creating output struct");
 
-
-    dataPtr = 
-        IDL_MakeTempStructVector(ti->sdef, (IDL_MEMINT) fi->nTuples, 
+    dataPtr =
+        IDL_MakeTempStructVector(ti->sdef, (IDL_MEMINT) fi->nTuples,
                 resultVptr, IDL_TRUE);
 
     /* Copy into output variable */
     if (verbose)
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Copying data");  
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Copying data");
 
     for (row=0; row< fi->nTuples; row++)
         for (tag = 0; tag < fi->nFields; tag++)
         {
-            tptr = 
+            tptr =
                 ( (*resultVptr)->value.s.arr->data +
                   row*( (*resultVptr)->value.arr->elt_len) + ti->tagOffsets[tag]);
             pgsql_store_binary(ti->tagDesc[tag]->type, fi->field_isarray[tag],
-                    PQgetvalue(res, row, tag), tptr);	      
+                    PQgetisnull(res, row, tag), PQgetvalue(res, row, tag), tptr);
         }
 
     if (verbose)
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Cleaning up");  
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Cleaning up");
 
     pgsql_freemem(fi, ti);
 
@@ -172,18 +166,11 @@ pgsql_query_send(char *query, char *connect_info, IDL_VPTR *resultVptr)
     PQfinish(conn);
 
     if (verbose)
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Done");  
-
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Done");
 
     return(MYPG_SUCCESS);
 
 }
-
-
-
-
-
-
 
 /* global, for signal handling */
 int cancel_query = 0;
@@ -198,11 +185,10 @@ int pgsql_query_send_async(char *query, char *connect_info, IDL_VPTR *resultVptr
     /* connection info */
     int query_status;
 
-
     PGconn *conn=NULL;
     PGresult *res=NULL;
 
-    PGcancel *cancel_obj; 
+    PGcancel *cancel_obj;
 
     /* Information about each field */
     field_info *fi;
@@ -211,7 +197,6 @@ int pgsql_query_send_async(char *query, char *connect_info, IDL_VPTR *resultVptr
     idl_tag_info *ti;
     //UCHAR *dataPtr;
     char *dataPtr;
-
 
     /* temporary pointer to tag data */
     UCHAR *tptr;
@@ -236,27 +221,24 @@ int pgsql_query_send_async(char *query, char *connect_info, IDL_VPTR *resultVptr
     if (PQstatus(conn) != CONNECTION_OK)
     {
         pgsql_query_error("Could not establish connection",
-                PQerrorMessage(conn));	
+                PQerrorMessage(conn));
         PQfinish(conn);
         return(MYPG_CONNECT_FAILURE);
     }
 
-
-
     /* send the query and return the results */
-    if (kw.file_there) 
+    if (kw.file_there)
         binary = 0;
     else
         binary = 1;
 
     if (kw.verbose_there)
-        if (kw.verbose) 
+        if (kw.verbose)
             verbose = 1;
 
     if (verbose)
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, 
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO,
                 "Querying database (^C to cancel)");
-
 
     if (! PQsendQueryParams(conn,
                 query,
@@ -273,14 +255,13 @@ int pgsql_query_send_async(char *query, char *connect_info, IDL_VPTR *resultVptr
 
     if (! (cancel_obj = PQgetCancel(conn)) )
     {
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, 
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO,
                 "Cancel object is NULL");
         return(MYPG_CANCEL_FAILURE);
     }
 
     /* Only allow SIGINT after this point, since it calls cancel */
     pgsql_sigint_register();
-
 
     /* note this is a busy loop. I tried sleeping, but it really slows
        down the job */
@@ -292,12 +273,12 @@ int pgsql_query_send_async(char *query, char *connect_info, IDL_VPTR *resultVptr
         {
             char errbuf[256];
 
-            IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, 
+            IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO,
                     "Canceling query at user request");
             if (!PQcancel(cancel_obj, errbuf, 256) )
             {
                 estatus = MYPG_CANCEL_FAILURE;
-                IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, 
+                IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO,
                         errbuf);
             }
             else
@@ -311,16 +292,14 @@ int pgsql_query_send_async(char *query, char *connect_info, IDL_VPTR *resultVptr
 
         }
 
-        PQconsumeInput(conn); //...retry 
+        PQconsumeInput(conn); //...retry
     }
-
-
 
     /* No signal handling beyond this point */
     pgsql_sigint_unregister();
 
     if (verbose)
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Getting result");  
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Getting result");
 
     res = PQgetResult(conn);
 
@@ -333,14 +312,13 @@ int pgsql_query_send_async(char *query, char *connect_info, IDL_VPTR *resultVptr
     }
 
     /* See if the user input a file to write to */
-    if (kw.file_there) 
+    if (kw.file_there)
     {
         int write_status;
         write_status = pgsql_write_file(res);
         prepExit(conn, res);
         return(write_status);
     }
-
 
     /* Get information for each returned field */
     fi = pgsql_get_field_info(res);
@@ -351,52 +329,48 @@ int pgsql_query_send_async(char *query, char *connect_info, IDL_VPTR *resultVptr
     /* Get info to make struct and copy data */
     ti = pgsql_get_idl_tag_info(fi->tagdefs);
 
-
-    /* Create the output structure */  
+    /* Create the output structure */
     if (verbose)
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Creating output struct");  
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Creating output struct");
 
-    dataPtr = 
-        IDL_MakeTempStructVector(ti->sdef, (IDL_MEMINT) fi->nTuples, 
+    dataPtr =
+        IDL_MakeTempStructVector(ti->sdef, (IDL_MEMINT) fi->nTuples,
                 resultVptr, IDL_TRUE);
 
     /* Copy into output variable */
     if (verbose)
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Copying data");  
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Copying data");
 
     for (row=0; row< fi->nTuples; row++)
         for (tag = 0; tag < fi->nFields; tag++)
         {
-            tptr = 
+            tptr =
                 ( (*resultVptr)->value.s.arr->data +
                   row*( (*resultVptr)->value.arr->elt_len) + ti->tagOffsets[tag]);
             pgsql_store_binary(ti->tagDesc[tag]->type, fi->field_isarray[tag],
-                    PQgetvalue(res, row, tag), tptr);	      
+                    PQgetisnull(res, row, tag), PQgetvalue(res, row, tag), tptr);
         }
 
-
     if (verbose)
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Cleaning up");  
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Cleaning up");
 
     pgsql_freemem(fi, ti);
     PQclear(res);
     PQfinish(conn);
 
-
     if (verbose)
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Done");  
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, "Done");
 
     return(MYPG_SUCCESS);
 
 }
 
-
-void 
+void
 pgsql_sigint_register()
 {
     if (!IDL_SignalRegister(2, (void *) sigint_func, IDL_MSG_LONGJMP))
     {
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, 
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO,
                 "Could not register signal handler");
     }
 }
@@ -406,17 +380,11 @@ pgsql_sigint_unregister()
 {
     if (!IDL_SignalUnregister(2, (void *) sigint_func, IDL_MSG_LONGJMP))
     {
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, 
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO,
                 "Could not Unregister signal handler");
     }
 
 }
-
-
-
-
-
-
 
 /*
  *
@@ -424,8 +392,8 @@ pgsql_sigint_unregister()
  *
  */
 
-int getNoEle(char* m) 
-{ 
+int getNoEle(char* m)
+{
     return ntohl(*(int*)(m + 3*sizeof(int)));
 }
 
@@ -436,36 +404,34 @@ IDL_MEMINT* GetArrayDims(char* mptr, IDL_MEMINT* totlen)
 
     *totlen=0;
     ndim = (IDL_MEMINT) ntohl( *(int32 *) (mptr+0*sizeof(int32)) );
-    if (VERBOSE) 
+    if (VERBOSE)
         printf("ndim = %ld\n", ndim);fflush(stdout);
 
-    if (ndim > 0) 
+    if (ndim > 0)
     {
         int pos=3;
         dims = (IDL_MEMINT *) calloc(ndim+1, sizeof(IDL_MEMINT));
         dims[0] = ndim;
         for (i=0; i<ndim; i++)
         {
-            dims[i+1] = 
+            dims[i+1] =
                 (IDL_MEMINT) ntohl( *(int32 *) (mptr+pos*sizeof(int32)) );
             *totlen += dims[i+1];
-            if (VERBOSE) 
+            if (VERBOSE)
                 printf("  dim[%ld] = %ld\n", i, dims[i+1]);fflush(stdout);
             pos=pos+2;
         }
     }
 
-    if (VERBOSE) 
+    if (VERBOSE)
         printf("Total length = %ld\n", *totlen);fflush(stdout);
 
     return(dims);
 }
 
-
-
-/* 
+/*
  *
- * Get postgres field info, store in structure and return 
+ * Get postgres field info, store in structure and return
  *
  */
 
@@ -502,7 +468,7 @@ field_info * pgsql_get_field_info(PGresult *res)
 
         if (fi->field_isarray[i])
         {
-            fi->tagdefs[i].dims = 
+            fi->tagdefs[i].dims =
                 GetArrayDims( PQgetvalue(res, 0, i), &(fi->field_lengths[i]) );
         }
         else
@@ -515,11 +481,11 @@ field_info * pgsql_get_field_info(PGresult *res)
         fi->tagdefs[i].type = (void *) pgsql2idltype(fi->field_types[i]);
         fi->tagdefs[i].flags = 0;
 
-        if (VERBOSE) 
-            printf("%-15s %-6d %-9ld %-6d\n", 
-                    fi->field_names[i], 
-                    fi->field_types[i], 
-                    fi->field_lengths[i], 
+        if (VERBOSE)
+            printf("%-15s %-6d %-9ld %-6d\n",
+                    fi->field_names[i],
+                    fi->field_types[i],
+                    fi->field_lengths[i],
                     PQgetlength(res, 0, i));
 
     }
@@ -531,9 +497,9 @@ field_info * pgsql_get_field_info(PGresult *res)
 
 }
 
-/* 
+/*
  *
- * Info for IDL structure creation 
+ * Info for IDL structure creation
  *
  */
 
@@ -557,13 +523,13 @@ idl_tag_info *pgsql_get_idl_tag_info(IDL_STRUCT_TAG_DEF *tagdefs)
     i=0;
     for (tag=0; tag< ti->ntags; tag++)
     {
-        tagName = 
-            IDL_StructTagNameByIndex(ti->sdef, tag, 
+        tagName =
+            IDL_StructTagNameByIndex(ti->sdef, tag,
                     IDL_MSG_INFO, NULL);
 
-        ti->tagOffsets[tag] = 
-            IDL_StructTagInfoByIndex(ti->sdef, 
-                    tag, 
+        ti->tagOffsets[tag] =
+            IDL_StructTagInfoByIndex(ti->sdef,
+                    tag,
                     IDL_MSG_LONGJMP,
                     &(ti->tagDesc[tag]) );
 
@@ -592,11 +558,7 @@ idl_tag_info *pgsql_get_idl_tag_info(IDL_STRUCT_TAG_DEF *tagdefs)
 
 }
 
-
-
-
 /* Extracting data */
-
 
 /* array must already be allocated */
 /*
@@ -639,7 +601,7 @@ void fillNumArray(char *mem, UCHAR* array, int32 nbytes)
 
                 /* next element */
                 memptr += nbytes;
-                arrptr += nbytes; 
+                arrptr += nbytes;
             }
             break;
         case 2:
@@ -655,7 +617,7 @@ void fillNumArray(char *mem, UCHAR* array, int32 nbytes)
 
                 /* next element */
                 memptr += nbytes;
-                arrptr += nbytes; 
+                arrptr += nbytes;
             }
             break;
         case 4:
@@ -671,7 +633,7 @@ void fillNumArray(char *mem, UCHAR* array, int32 nbytes)
 
                 /* next element */
                 memptr += nbytes;
-                arrptr += nbytes; 
+                arrptr += nbytes;
             }
             break;
         case 8:
@@ -687,7 +649,7 @@ void fillNumArray(char *mem, UCHAR* array, int32 nbytes)
 
                 /* next element */
                 memptr += nbytes;
-                arrptr += nbytes; 
+                arrptr += nbytes;
             }
             break;
         default:
@@ -696,7 +658,6 @@ void fillNumArray(char *mem, UCHAR* array, int32 nbytes)
             break;
     }
 }
-
 
 void fillStringArray(char *mem, IDL_STRING *array)
 {
@@ -731,8 +692,6 @@ void fillStringArray(char *mem, IDL_STRING *array)
     }
 }
 
-
-
 char *string2upper(char *st)
 {
     char *s = st;
@@ -741,90 +700,121 @@ char *string2upper(char *st)
 }
 
 /*
- * 
- * Store the binary data into IDL variables 
+ *
+ * Store the binary data into IDL variables
  *
  */
 
-void pgsql_store_binary(int32 idlType, 
-        int16 isarray, 
-        char *input, 
+void pgsql_store_binary(int32 idlType,
+        int16 isarray,
+        int isnull,
+        char *input,
         UCHAR *output)
 {
 
     switch(idlType)
     {
-        case IDL_TYP_FLOAT: 
+        case IDL_TYP_FLOAT:
             /* atof actually returns double */
             if (isarray)
                 fillNumArray(input, output, 4);
             else
-                NTOH32(input, output);
+            {
+                if (isnull)
+                    *((float32 *) output) = -NAN;
+                else
+                    NTOH32(input, output);
+            }
             break;
 
         case IDL_TYP_DOUBLE:
             if (isarray)
                 fillNumArray(input, output, 8);
             else
-                NTOH64(input, output);
+            {
+                if (isnull)
+                    *((float64 *) output) = -NAN;
+                else
+                    NTOH64(input, output);
+            }
             break;
 
         case IDL_TYP_BYTE:
             if (isarray)
                 fillNumArray(input, output, 1);
             else
-                *(UCHAR *) output = *(UCHAR *) input;
+                if (isnull)
+                    *(UCHAR *) output = 255;
+                else
+                    *(UCHAR *) output = *(UCHAR *) input;
             break;
 
         case IDL_TYP_INT:
             if (isarray)
                 fillNumArray(input, output, 2);
             else
-                NTOH16(input, output);
+                if (isnull)
+                    *((IDL_INT *) output) = (IDL_INT) -32768;
+                else
+                    NTOH16(input, output);
             break;
         case IDL_TYP_UINT:
             if (isarray)
                 fillNumArray(input, output, 2);
             else
-                NTOH16(input, output);
+                if (isnull)
+                    *((IDL_UINT *) output) = (IDL_UINT) 65535;
+                else
+                    NTOH16(input, output);
             break;
 
         case IDL_TYP_LONG:
             if (isarray)
                 fillNumArray(input, output, 4);
             else
-                NTOH32(input, output);
+                if (isnull)
+                    *((IDL_LONG *) output) = (IDL_LONG) -2147483648;
+                else
+                    NTOH32(input, output);
             break;
         case IDL_TYP_ULONG:
             if (isarray)
                 fillNumArray(input, output, 4);
             else
-                NTOH32(input, output);
+                if (isnull)
+                    *((IDL_ULONG *) output) = (IDL_ULONG) 4294967295;
+                else
+                    NTOH32(input, output);
             break;
 
         case IDL_TYP_LONG64:
             if (isarray)
                 fillNumArray(input, output, 8);
             else
-                NTOH64(input, output);
+                if (isnull)
+                    *((IDL_LONG64 *) output) = (IDL_LONG64) -9223372036854775808;
+                else
+                    NTOH64(input, output);
             break;
         case IDL_TYP_ULONG64:
             if (isarray)
                 fillNumArray(input, output, 8);
             else
-                NTOH64(input, output);
+                if (isnull)
+                    *((IDL_ULONG64 *) output) = (IDL_ULONG64) 18446744073709551615;
+                else
+                    NTOH64(input, output);
             break;
-
 
         case IDL_TYP_STRING:
             if (isarray)
                 fillStringArray(input, (IDL_STRING *) output);
             else
+                /* NULL strings are already empty */
                 IDL_StrStore( (IDL_STRING *) output, input);
             break;
 
-
-        default: 
+        default:
             printf("Unsupported type %d found\n", idlType);
             fflush(stdout);
             break;
@@ -832,65 +822,65 @@ void pgsql_store_binary(int32 idlType,
 
 }
 
-
 /*
  * Convert postgres type code to idl type code
  */
-
 
 IDL_MEMINT pgsql2idltype(int pgsql_type)
 {
     switch(pgsql_type)
     {
-        /* 
-           Scalar types 
+        /*
+           Scalar types
            */
 
         /* boolean */
-        case 16: return(IDL_TYP_BYTE);
+        case BOOLOID: return(IDL_TYP_BYTE); /* 16 */
                  /* "binary" data */
-        case 17: return(IDL_TYP_BYTE);
+        case BYTEAOID: return(IDL_TYP_BYTE); /* 17 */
                  /* char data */
-        case 18: return(IDL_TYP_STRING);
+        case CHAROID: return(IDL_TYP_STRING); /* 18 */
                  /* "name" */
-        case 19: return(IDL_TYP_STRING);
+        case NAMEOID: return(IDL_TYP_STRING); /* 19 */
                  /* bigint */
-        case 20: return(IDL_TYP_LONG64);
+        case INT8OID: return(IDL_TYP_LONG64); /* 20 */
                  /* smallint */
-        case 21: return(IDL_TYP_INT);
+        case INT2OID: return(IDL_TYP_INT); /* 21 */
                  /* int2vector ??*/
-                 /* 22: int2vector?? */
+                 /* INT2VECTOROID 22: int2vector?? */
                  /* integer, int4 */
-        case 23: return(IDL_TYP_LONG);
+        case INT4OID: return(IDL_TYP_LONG); /* 23 */
                  /* text */
-        case 25: return(IDL_TYP_STRING);
+        case TEXTOID: return(IDL_TYP_STRING); /* 25 */
                  /* oid */
-        case 26: return(IDL_TYP_ULONG);
+        case OIDOID: return(IDL_TYP_ULONG); /* 26 */
                  /* tid */
-        case 27: return(IDL_TYP_ULONG);
+        case TIDOID: return(IDL_TYP_ULONG); /* 27 */
                  /* xid */
-        case 28: return(IDL_TYP_ULONG);
+        case XIDOID: return(IDL_TYP_ULONG); /* 28 */
                  /* cid */
-        case 29: return(IDL_TYP_ULONG);
+        case CIDOID: return(IDL_TYP_ULONG); /* 29 */
 
                  /* float */
-        case 700: return(IDL_TYP_FLOAT);
+        case FLOAT4OID: return(IDL_TYP_FLOAT); /* 700 */
                   /* double */
-        case 701: return(IDL_TYP_DOUBLE);
+        case FLOAT8OID: return(IDL_TYP_DOUBLE); /* 701 */
 
                   /* bpchar */
-        case 1042: return(IDL_TYP_STRING);
+        case BPCHAROID: return(IDL_TYP_STRING); /* 1042 */
                    /* varchar */
-        case 1043: return(IDL_TYP_STRING);
+        case VARCHAROID: return(IDL_TYP_STRING); /* 1043 */
                    /* date */
-        case 1082: return(IDL_TYP_STRING);
+        case DATEOID: return(IDL_TYP_STRING); /* 1082 */
                    /* time */
-        case 1083: return(IDL_TYP_STRING);
+        case TIMEOID: return(IDL_TYP_STRING); /* 1083 */
                    /* timestamp */
-        case 1114: return(IDL_TYP_STRING);
+        case TIMESTAMPOID: return(IDL_TYP_LONG64); /* 1114 */
+                   /* timestamptz */
+        case TIMESTAMPTZOID: return(IDL_TYP_LONG64); /* 1184 */
 
                    /*
-                      Array types 
+                      Array types
                       */
 
                    /* bool */
@@ -903,19 +893,19 @@ IDL_MEMINT pgsql2idltype(int pgsql_type)
         case 1003: return(IDL_TYP_BYTE);
 
                    /* smallint */
-        case 1005: return(IDL_TYP_INT);
+        case INT2ARRAYOID: return(IDL_TYP_INT); /* 1005 */
                    /* int2vector */
-                   /* case 1006: ?? */
+                   /* case 1006:?? */
                    /* integer, int4 */
-        case 1007: return(IDL_TYP_LONG);
+        case INT4ARRAYOID: return(IDL_TYP_LONG); /* 1007 */
                    /* bigint, int8 */
         case 1016: return(IDL_TYP_LONG64);
 
                    /* text */
-        case 1009: return(IDL_TYP_STRING);
+        case TEXTARRAYOID: return(IDL_TYP_STRING); /* 1009 */
 
                    /* oid */
-        case 1028: return(IDL_TYP_ULONG);
+        case OIDARRAYOID: return(IDL_TYP_ULONG); /* 1028 */
                    /* tid */
         case 1010: return(IDL_TYP_ULONG);
                    /* xid */
@@ -929,7 +919,7 @@ IDL_MEMINT pgsql2idltype(int pgsql_type)
         case 1015: return(IDL_TYP_STRING);
 
                    /* float */
-        case 1021: return(IDL_TYP_FLOAT);
+        case FLOAT4ARRAYOID: return(IDL_TYP_FLOAT); /* 1021 */
                    /* double */
         case 1022: return(IDL_TYP_DOUBLE);
 
@@ -956,8 +946,8 @@ IDL_MEMINT pgsql2idltype(int pgsql_type)
     }
 }
 
-/* 
- * Given the type whether this is an array or not 
+/*
+ * Given the type whether this is an array or not
  */
 
 int isArray(unsigned int field_type)
@@ -1025,7 +1015,7 @@ int isArray(unsigned int field_type)
  * copy the field info into output keywords
  */
 
-void pgsql_copy_info(field_info *fi) 
+void pgsql_copy_info(field_info *fi)
 
 {
 
@@ -1039,10 +1029,10 @@ void pgsql_copy_info(field_info *fi)
     IDL_VPTR fieldLengthsVptr;
     IDL_LONG *lengthsPtr;
 
-    if (kw.field_names_there) 
+    if (kw.field_names_there)
     {
-        namesPtr = (IDL_STRING *) 
-            IDL_MakeTempVector(IDL_TYP_STRING, fi->nFields, 
+        namesPtr = (IDL_STRING *)
+            IDL_MakeTempVector(IDL_TYP_STRING, fi->nFields,
                     IDL_ARR_INI_ZERO, &fieldNamesVptr);
         for (i=0; i<fi->nFields; i++)
             IDL_StrStore(&namesPtr[i], fi->field_names[i]);
@@ -1052,8 +1042,8 @@ void pgsql_copy_info(field_info *fi)
 
     if (kw.field_types_there)
     {
-        typesPtr = (IDL_LONG *) 
-            IDL_MakeTempVector(IDL_TYP_ULONG, fi->nFields, 
+        typesPtr = (IDL_LONG *)
+            IDL_MakeTempVector(IDL_TYP_ULONG, fi->nFields,
                     IDL_ARR_INI_ZERO, &fieldTypesVptr);
 
         for (i=0; i<fi->nFields; i++)
@@ -1064,8 +1054,8 @@ void pgsql_copy_info(field_info *fi)
 
     if (kw.field_lengths_there)
     {
-        lengthsPtr = (IDL_LONG *) 
-            IDL_MakeTempVector(IDL_TYP_LONG, fi->nFields, 
+        lengthsPtr = (IDL_LONG *)
+            IDL_MakeTempVector(IDL_TYP_LONG, fi->nFields,
                     IDL_ARR_INI_ZERO, &fieldLengthsVptr);
 
         for (i=0; i<fi->nFields; i++)
@@ -1079,14 +1069,9 @@ void pgsql_copy_info(field_info *fi)
 
 }
 
-
-
-
-
 /*
  * write the results to a file
  */
-
 
 int pgsql_write_file(PGresult *res)
 {
@@ -1133,7 +1118,6 @@ int pgsql_write_file(PGresult *res)
 
 }
 
-
 /* Complex checking of the query status */
     int
 pgsql_query_checkstatus(PGresult *res)
@@ -1143,15 +1127,14 @@ pgsql_query_checkstatus(PGresult *res)
     int nFields;
     long long nTuples;
 
-    /* 
-       For successful queries, there are two options: either the query returns 
-       results or not.  If it does not return data, but successfully completed, 
-       then the status will be set to 
-       PGRES_COMMAND_OK.  
-       If success and returns tuples, then it will be set to 
-       PGRES_TUPLES_OK 
+    /*
+       For successful queries, there are two options: either the query returns
+       results or not.  If it does not return data, but successfully completed,
+       then the status will be set to
+       PGRES_COMMAND_OK.
+       If success and returns tuples, then it will be set to
+       PGRES_TUPLES_OK
        */
-
 
     status = PQresultStatus(res);
 
@@ -1164,7 +1147,7 @@ pgsql_query_checkstatus(PGresult *res)
 
     if (PQresultStatus(res) != PGRES_TUPLES_OK)
     {
-        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO, 
+        IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO,
                 PQresultErrorMessage(res));
 
         switch (status)
@@ -1177,7 +1160,7 @@ pgsql_query_checkstatus(PGresult *res)
                                        /* An error */
             case PGRES_FATAL_ERROR:    return(MYPG_FATAL_ERROR);
             default: break;
-        } 
+        }
     }
 
     /* How many fields and rows did we return? */
@@ -1185,7 +1168,7 @@ pgsql_query_checkstatus(PGresult *res)
     nTuples = PQntuples(res);
 
     /* Result is empty, either an error or this query returns no data */
-    if (nTuples == 0) 
+    if (nTuples == 0)
     {
         if (nFields == 0)
         {
@@ -1202,7 +1185,6 @@ pgsql_query_checkstatus(PGresult *res)
     return(MYPG_SUCCESS);
 
 }
-
 
 /*-----------------------------------------------------------------------
   mysql_query_database_error
@@ -1224,7 +1206,6 @@ pgsql_query_error(char *text, char *errMessage)
 
 }
 
-
 /*-----------------------------------------------------------------------
   nParams
   return the number of parameters.  Accounts for keywords
@@ -1236,16 +1217,16 @@ int pgsql_query_nparams(int argc)
     int nKeywords;
 
     nKeywords =
-        kw.append_there + 
-        kw.field_lengths_there + 
-        kw.field_names_there + kw.field_types_there + 
-        kw.file_there + 
-        kw.nointerrupt_there + 
-        kw.nrows_there + 
+        kw.append_there +
+        kw.field_lengths_there +
+        kw.field_names_there + kw.field_types_there +
+        kw.file_there +
+        kw.nointerrupt_there +
+        kw.nrows_there +
         kw.status_there +
         kw.verbose_there;
 
-    return 
+    return
         argc - nKeywords;
 }
 
@@ -1265,8 +1246,8 @@ prepExit(PGconn *conn, PGresult *res)
 
 }
 
-/*----------------------------------------------------------------------- 
-  set the status keyword if it is there 
+/*-----------------------------------------------------------------------
+  set the status keyword if it is there
   -----------------------------------------------------------------------*/
 
     void
@@ -1281,27 +1262,25 @@ setStatus(int statusVal)
 
 }
 
-
-
 void pgsql_freemem(field_info *fi, idl_tag_info *ti)
 {
     int i;
-    /* 
+    /*
        Free memory
 
-       No need to free field_names since just pointers into 
-       the result field names 
+       No need to free field_names since just pointers into
+       the result field names
        */
     free(fi->field_lengths);
     free(fi->field_isarray);
     free(fi->field_types);
-    
+
     // Might not need to do this
     free(fi->field_names);
 
     for (i=0; i<fi->nFields; i++)
         free(fi->tagdefs[i].dims);
-    free(fi->tagdefs); 
+    free(fi->tagdefs);
 
     free(fi);
 
@@ -1312,41 +1291,17 @@ void pgsql_freemem(field_info *fi, idl_tag_info *ti)
     free(ti);
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 /* Functions I used with the old ascii retrieval */
 void pgsql_store_ascii(int idlType, UCHAR *tptr, char *value)
 {
 
-    /* Note, not all types can be converted from atoi directly, 
+    /* Note, not all types can be converted from atoi directly,
        I am doing the conversion in those cases, hope it works
        */
 
     switch(idlType)
     {
-        case IDL_TYP_FLOAT: 
+        case IDL_TYP_FLOAT:
             /* atof actually returns double */
             *(float *)tptr = (float) atof(value);
             break;
@@ -1377,7 +1332,7 @@ void pgsql_store_ascii(int idlType, UCHAR *tptr, char *value)
         case IDL_TYP_STRING:
             IDL_StrStore( (IDL_STRING *) tptr, value);
             break;
-        default: 
+        default:
             printf("Unsupported type %d found\n", idlType);
             fflush(stdout);
             break;
@@ -1385,14 +1340,13 @@ void pgsql_store_ascii(int idlType, UCHAR *tptr, char *value)
 
 }
 
-
 /* count the number of elements in an array literal */
 
 int countArrayElements(char *value)
 {
 
     int num, valLen, i;
-    char t;  
+    char t;
 
     valLen = strlen(value);
 
@@ -1401,7 +1355,7 @@ int countArrayElements(char *value)
     {
         t = value[i];
 
-        if (t == LEFT_CURLY) 
+        if (t == LEFT_CURLY)
             num += 1;
         else if (t == COMMA)
             num += 1;
@@ -1481,7 +1435,7 @@ char **extractElements(char *value, int nel)
         elements[i] = el;
 
         if (end == NULL || end[0] == RIGHT_CURLY)
-        { 
+        {
             if (i != nel-1)
             {
                 IDL_Message(IDL_M_NAMED_GENERIC, IDL_MSG_INFO,
@@ -1496,26 +1450,6 @@ char **extractElements(char *value, int nel)
 
     return(elements);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 /* obsolete functions */
 void fillFloat32Array(char *mem, float32 *array)
@@ -1547,7 +1481,6 @@ void fillFloat32Array(char *mem, float32 *array)
 
     }
 }
-
 
 void fill32array(char *mem, char *array)
 {
@@ -1610,8 +1543,4 @@ void fillInt16Array(char *mem, int16 *array)
 
     }
 }
-
-
-
-
 

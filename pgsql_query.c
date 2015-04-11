@@ -66,6 +66,7 @@
 #include "idl_export.h"
 #include "libpq-fe.h"
 #include "types.h"
+#include "c.h"
 //#include <byteswap.h>
 
 #include "pgsql_query.h"
